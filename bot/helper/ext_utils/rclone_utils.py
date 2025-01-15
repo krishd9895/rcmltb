@@ -418,10 +418,25 @@ async def get_id(rclone_path, config_path, name, mime_type):
     ]
 
     res, err, code = await cmd_exec(cmd)
-    id = ""
+    id = "err"
+    
     if code == 0:
-        id = next((d["ID"] for d in jsonloads(res) if d["Path"] == name), "err")
+        try:
+            json_data = jsonloads(res)
+            for item in json_data:
+                if item["Path"] == name:
+                    # For clouds that provide ID field
+                    if "ID" in item:
+                        id = item["ID"]
+                    # For clouds that don't provide ID
+                    else:
+                        # Using path as fallback ID
+                        id = item.get("Path", "err")
+                    break
+        except Exception as e:
+            LOGGER.error(f"Error parsing rclone response: {str(e)}")
+            id = "err"
     else:
         LOGGER.error(f"Error while getting link. Error: {err}")
-        id = "err"
+    
     return id
